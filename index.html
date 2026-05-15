@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Northern Lights – No Bars · OBS</title>
+    <title>Horizontal Aurora – OBS</title>
     <style>
         * {
             margin: 0;
@@ -46,18 +46,25 @@
 
             let time = 0;
 
-            // ---- AURORA CURTAINS (translucent, slow movement) ----
-            const curtains = [];
-            const CURTAIN_COUNT = 6;
+            // ---- HORIZONTAL AURORA BANDS ----
+            const bands = [];
+            const BAND_COUNT = 12;              // plenty to cover the screen vertically
 
-            function createCurtain() {
+            function createBand(index) {
+                // spread bands across the height with some overlap
+                const bandHeight = HEIGHT / BAND_COUNT;
+                const baseY = (index + 0.5) * bandHeight + (Math.random() - 0.5) * bandHeight * 0.5;
+                // vertical thickness (width in horizontal context)
+                const thickness = bandHeight * (1.0 + Math.random() * 1.4); // "a bit wider"
+
                 return {
-                    baseX: 200 + Math.random() * (WIDTH - 400),
-                    width: 80 + Math.random() * 160,
-                    amplitude: 40 + Math.random() * 80,
-                    frequency: 0.001 + Math.random() * 0.003,
-                    speed: 0.015 + Math.random() * 0.04,
+                    baseY: baseY,
+                    thickness: thickness,
+                    amplitude: 20 + Math.random() * 60,         // gentle vertical wobble
+                    frequency: 0.0006 + Math.random() * 0.002,
+                    speed: 0.01 + Math.random() * 0.03,         // slow horizontal drift
                     phase: Math.random() * Math.PI * 2,
+                    // gradient from top (blue) to bottom (red) within each band
                     colorStops: [
                         { pos: 0, color: 'rgba(30, 60, 160, 0.18)' },
                         { pos: 0.35, color: 'rgba(80, 40, 150, 0.16)' },
@@ -68,8 +75,8 @@
                 };
             }
 
-            for (let i = 0; i < CURTAIN_COUNT; i++) {
-                curtains.push(createCurtain());
+            for (let i = 0; i < BAND_COUNT; i++) {
+                bands.push(createBand(i));
             }
 
             // ---- STARS ----
@@ -107,45 +114,50 @@
                 }
             }
 
-            // ---- DRAW AURORA CURTAINS ----
-            function drawCurtains(t) {
-                for (const c of curtains) {
-                    const steps = 80;
-                    const topY = 0;
-                    const bottomY = HEIGHT;
-                    const dy = (bottomY - topY) / steps;
+            // ---- DRAW HORIZONTAL AURORA BANDS ----
+            function drawBands(t) {
+                for (const b of bands) {
+                    const steps = 160;          // high resolution for smooth waves
+                    const dx = WIDTH / steps;
 
-                    const leftPoints = [];
-                    const rightPoints = [];
+                    // upper and lower edges of the band, following a wavy pattern
+                    const upperPoints = [];
+                    const lowerPoints = [];
                     for (let i = 0; i <= steps; i++) {
-                        const y = topY + i * dy;
-                        const waveOffset = c.amplitude * Math.sin(y * c.frequency + c.phase + t * c.speed);
-                        const leftX = c.baseX - c.width / 2 + waveOffset;
-                        const rightX = c.baseX + c.width / 2 + waveOffset * 0.8;
-                        leftPoints.push({ x: leftX, y });
-                        rightPoints.push({ x: rightX, y });
+                        const x = i * dx;
+                        // vertical offset based on horizontal position and time
+                        const waveOffset = b.amplitude * Math.sin(x * b.frequency + b.phase + t * b.speed);
+                        const yTop = b.baseY - b.thickness / 2 + waveOffset;
+                        const yBottom = b.baseY + b.thickness / 2 + waveOffset * 0.7; // slightly different wave for thickness variation
+                        upperPoints.push({ x, y: yTop });
+                        lowerPoints.push({ x, y: yBottom });
                     }
 
                     ctx.beginPath();
-                    ctx.moveTo(leftPoints[0].x, leftPoints[0].y);
-                    for (let i = 1; i < leftPoints.length; i++) {
-                        ctx.lineTo(leftPoints[i].x, leftPoints[i].y);
+                    // trace upper edge left to right
+                    ctx.moveTo(upperPoints[0].x, upperPoints[0].y);
+                    for (let i = 1; i < upperPoints.length; i++) {
+                        ctx.lineTo(upperPoints[i].x, upperPoints[i].y);
                     }
-                    for (let i = rightPoints.length - 1; i >= 0; i--) {
-                        ctx.lineTo(rightPoints[i].x, rightPoints[i].y);
+                    // trace lower edge right to left
+                    for (let i = lowerPoints.length - 1; i >= 0; i--) {
+                        ctx.lineTo(lowerPoints[i].x, lowerPoints[i].y);
                     }
                     ctx.closePath();
 
-                    const grad = ctx.createLinearGradient(0, 0, 0, HEIGHT);
-                    for (const stop of c.colorStops) {
+                    // vertical gradient across the band (top to bottom)
+                    const yMin = b.baseY - b.thickness;
+                    const yMax = b.baseY + b.thickness;
+                    const grad = ctx.createLinearGradient(0, yMin, 0, yMax);
+                    for (const stop of b.colorStops) {
                         grad.addColorStop(stop.pos, stop.color);
                     }
                     ctx.fillStyle = grad;
                     ctx.fill();
 
-                    // subtle edge glow
-                    ctx.strokeStyle = 'rgba(180, 150, 255, 0.08)';
-                    ctx.lineWidth = 1.2;
+                    // very faint edge
+                    ctx.strokeStyle = 'rgba(180, 150, 255, 0.05)';
+                    ctx.lineWidth = 1;
                     ctx.stroke();
                 }
             }
@@ -169,7 +181,7 @@
                 ctx.clearRect(0, 0, WIDTH, HEIGHT);
                 drawBackground();
                 drawStars(time);
-                drawCurtains(time);
+                drawBands(time);
                 drawVignette();
 
                 requestAnimationFrame(animate);
@@ -191,7 +203,7 @@
             window.addEventListener('resize', handleResize);
             handleResize();
 
-            console.log('🌌 Northern Lights (no bars) — 1920×1080 — OBS Ready');
+            console.log('🌌 Horizontal Aurora – 1920×1080 – OBS Ready');
         })();
     </script>
 </body>
